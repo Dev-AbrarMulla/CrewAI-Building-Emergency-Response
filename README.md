@@ -1,6 +1,6 @@
 # Multi-Agent Building Emergency Response System (CrewAI)
 
-A multi-agent workflow built with [CrewAI](https://www.crewai.com/) that simulates how a building's response teams coordinate during emergencies. Course project for the Large Language Models course at BITS Pilani, Dubai Campus.
+A multi-agent workflow built with [CrewAI](https://www.crewai.com/) that simulates how a building's response teams coordinate during emergencies.
 
 ## Overview
 
