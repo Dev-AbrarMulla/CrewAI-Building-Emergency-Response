@@ -1,0 +1,218 @@
+
+================================================================
+SYSTEM DESIGN DOCUMENT
+Intelligent Building Maintenance & Emergency Response System
+Using CrewAI Multi-Agent Framework
+================================================================
+
+1. INTRODUCTION
+---------------
+This document describes the design and implementation of an
+intelligent multi-agent building maintenance and emergency
+response system built using the CrewAI framework. The system
+coordinates four specialized AI agents to detect, assess, and
+respond to building emergencies in a realistic and structured
+manner.
+
+The system was designed to simulate real-world emergency
+coordination where multiple teams must share information,
+prioritize tasks, and make decisions based on each other's
+findings — all within a unified automated pipeline.
+
+----------------------------------------------------------------
+
+2. SYSTEM ARCHITECTURE
+-----------------------
+The system follows a SEQUENTIAL MULTI-AGENT PIPELINE, where
+each agent processes incoming incident data, generates a
+structured report, and passes its output as context to the
+next agent in the chain.
+
+  [ Incident Report ]
+         |
+         v
+  [ HVAC Agent ]
+  - Reads raw sensor data
+  - Outputs: air quality report
+         |
+         v
+  [ Fire Agent ]
+  - Reads HVAC report + incident
+  - Outputs: hazard assessment + evacuation routes
+         |
+         v
+  [ Police Agent ]
+  - Reads HVAC + Fire reports
+  - Outputs: evacuation plan + security response
+         |
+         v
+  [ Ambulance Agent ]
+  - Reads all 3 prior reports
+  - Outputs: medical response + triage plan
+         |
+         v
+  [ Final Combined Report ]
+
+Framework Used  : CrewAI
+LLM Provider    : Hugging Face (meta-llama/Llama-3.1-8B via Cerebras)
+Process Type    : Sequential
+Communication   : Context passing via CrewAI task context[]
+
+----------------------------------------------------------------
+
+3. AGENT DEFINITIONS
+---------------------
+
+3.1 HVAC Agent
+  Role     : HVAC Systems Monitor
+  Goal     : Monitor temperature, ventilation, and air quality
+             and report anomalies that may indicate danger
+  Backstory: Certified HVAC specialist with 15 years experience
+             in building environmental systems
+  Responsibilities:
+    - Report temperature and air quality per floor
+    - Identify ventilation zones affected by hazards
+    - Recommend HVAC shutdown or redirection
+    - Flag dangerous zones for other teams
+
+3.2 Fire Systems Agent
+  Role     : Fire Safety and Hazard Detection Specialist
+  Goal     : Detect fire hazards, trigger alarms, coordinate
+             suppression, communicate fire status
+  Backstory: Fire safety engineer trained in detection systems,
+             suppression protocols, and evacuation procedures
+  Responsibilities:
+    - Assess fire/explosion hazard level
+    - Trigger alarms and activate suppression systems
+    - Identify safe and blocked evacuation routes
+    - Issue standing orders to all response teams
+
+3.3 Police Agent
+  Role     : Building Security and Evacuation Coordinator
+  Goal     : Handle security breaches, manage evacuation,
+             control access points, ensure occupant safety
+  Backstory: Senior security officer with training in emergency
+             evacuation and crisis coordination
+  Responsibilities:
+    - Coordinate full building evacuation
+    - Respond to security breaches
+    - Secure perimeter for emergency vehicles
+    - Account for all occupants
+
+3.4 Ambulance Agent
+  Role     : Emergency Medical Response Coordinator
+  Goal     : Assess medical emergencies, dispatch resources,
+             provide first-response guidance
+  Backstory: Paramedic team leader with 10 years experience in
+             emergency medical response
+  Responsibilities:
+    - Triage and assess patients
+    - Coordinate ambulance access routes
+    - Issue first aid instructions to bystanders
+    - Notify hospitals of incoming patients
+
+----------------------------------------------------------------
+
+4. INTER-AGENT COMMUNICATION
+-----------------------------
+Inter-agent communication is implemented using CrewAI's native
+task context passing mechanism.
+
+Each task receives the outputs of all previously completed
+tasks as context. This simulates realistic information sharing
+between emergency response teams:
+
+  task_fire    = Task(context=[task_hvac])
+  task_police  = Task(context=[task_hvac, task_fire])
+  task_ambulance = Task(context=[task_hvac, task_fire, task_police])
+
+This ensures that:
+  - The Fire Agent builds on the HVAC Agent's findings
+  - The Police Agent coordinates based on both HVAC and Fire reports
+  - The Ambulance Agent has full situational awareness from
+    all three prior agents before making medical decisions
+
+----------------------------------------------------------------
+
+5. SCENARIO DESCRIPTIONS
+--------------------------
+
+SCENARIO 1: Fire Emergency + Medical Emergency
+  Location : Building Alpha
+  Time     : 14:35 PM
+  Triggers :
+    - Smoke detector triggered on Floor 3, Zone B
+    - Temperature spike of 78 degrees C near server room
+    - Person unconscious in lobby (possible cardiac event)
+    - 120 occupants in building
+    - Main stairwell B blocked by smoke
+
+  Agent Responses:
+    HVAC     -> Flagged Floor 3 as unsafe, recommended
+                ventilation shutdown for Zone B
+    Fire     -> Confirmed high hazard, activated suppression,
+                identified stairwell A as safe evacuation route
+    Police   -> Initiated full evacuation, secured ambulance
+                access route, deployed personnel to exits
+    Ambulance-> Triaged cardiac patient, initiated CPR guidance,
+                notified hospital, confirmed ambulance route
+
+SCENARIO 2: Security Breach + Gas Leak
+  Location : Building Alpha
+  Time     : 09:15 AM
+  Triggers :
+    - Unauthorized access in Server Room B2 (basement)
+    - 2 unidentified individuals on camera
+    - CO2 spiking on Floors 1 and 2 (possible gas leak)
+    - Air quality HAZARDOUS on Floor 2, Zone A
+    - Security guard dizzy/nauseous near Floor 2
+    - East wing emergency exit jammed
+    - 85 occupants in building (morning shift)
+
+  Agent Responses:
+    HVAC     -> Identified gas leak source in basement,
+                recommended ventilation isolation for Floors 1-2
+    Fire     -> Assessed HIGH explosion risk, recommended
+                evacuation over lockdown, identified west wing
+                and stairwells A/B as safe routes
+    Police   -> Tracked unauthorized individuals, coordinated
+                evacuation around jammed east exit, secured
+                perimeter, confirmed medical access route
+    Ambulance-> Treated 11 symptomatic occupants, established
+                triage point in west wing, notified hospital
+                for mass casualty preparedness
+
+----------------------------------------------------------------
+
+6. DESIGN DECISIONS
+--------------------
+
+Sequential vs Hierarchical Process:
+  Sequential process was chosen because emergency response
+  follows a natural chain of dependency — medical teams cannot
+  act without knowing safe access routes from police, police
+  cannot evacuate without knowing which routes are safe from
+  fire, and fire cannot respond without HVAC environmental data.
+
+Single LLM for All Agents:
+  All agents share the same underlying LLM. Each agent is
+  differentiated by its role, goal, and backstory, which
+  guides the LLM to respond from that agent's perspective.
+
+allow_delegation = False:
+  Delegation was disabled to keep agent responsibilities clear
+  and prevent agents from reassigning tasks. Coordination is
+  handled through context passing instead.
+
+----------------------------------------------------------------
+
+7. TECHNOLOGIES USED
+---------------------
+  - Python 3.12
+  - CrewAI (multi-agent orchestration)
+  - LiteLLM (LLM provider abstraction)
+  - HuggingFace Inference API (LLM backend)
+  - Meta Llama 3.1 8B Instruct via Cerebras provider
+  - Google Colab (execution environment)
+
+================================================================
